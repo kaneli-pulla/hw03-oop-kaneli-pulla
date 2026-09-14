@@ -1,99 +1,111 @@
-"""Модуль с классом Matrix для задания 3.1."""
-
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Callable, Iterator
 from typing import Self
 
 
 class Matrix:
-    """Класс матрицы с поддержкой арифметики, хеширования и форматирования.
-
-    Примеры использования:
-        >>> m = Matrix([[1, 2], [3, 4]])
-        >>> m + Matrix([[5, 6], [7, 8]])
-        Matrix([[6, 8], [10, 12]])
-
-    TODO: Реализовать следующие методы:
-    - __init__(self, data): инициализация из вложенного списка
-    - __add__, __sub__: поэлементное сложение/вычитание
-    - __mul__: умножение на скаляр
-    - __matmul__: матричное умножение
-    - __eq__: сравнение матриц
-    - __hash__: хеширование (матрица должна быть hashable)
-    - __repr__: строковое представление в виде Python-выражения
-    - __str__: читаемое табличное представление
-    - __format__: форматирование с указанием точности (например, f"{m:.2f}")
-    - from_file(path): classmethod/contextmanager для чтения матрицы из файла
-    """
+    """Класс матрицы с поддержкой арифметики, хеширования и форматирования."""
 
     def __init__(self, data: list[list[float]]) -> None:
-        # TODO: сохранить данные, проверить прямоугольность
-        raise NotImplementedError
+        """Создаёт матрицу из прямоугольного вложенного списка."""
+        if data and any(len(row) != len(data[0]) for row in data):
+            raise ValueError("Строки матрицы должны иметь одинаковую длину")
+        self._data = tuple(tuple(row) for row in data)
 
     @property
     def rows(self) -> int:
-        # TODO
-        raise NotImplementedError
+        """Возвращает количество строк матрицы."""
+        return len(self._data)
 
     @property
     def cols(self) -> int:
-        # TODO
-        raise NotImplementedError
+        """Возвращает количество столбцов матрицы."""
+        return len(self._data[0]) if self._data else 0
 
     def __add__(self, other: Self) -> Self:
-        # TODO
-        raise NotImplementedError
+        """Складывает две матрицы одинакового размера."""
+        self._check_same_shape(other)
+        result = self._operation_with_other_matrix(other, lambda x, y: x + y)
+        return result
 
     def __sub__(self, other: Self) -> Self:
-        # TODO
-        raise NotImplementedError
+        """Вычитает матрицу того же размера."""
+        self._check_same_shape(other)
+        result = self._operation_with_other_matrix(other, lambda x, y: x - y)
+        return result
+
+    def _operation_with_other_matrix(
+        self, other: Self, op: Callable[[float, float], float]
+    ) -> Self:
+        """Вычисляет операции над элементами матриц"""
+        result = [
+            [op(self._data[row][col], other._data[row][col]) for col in range(self.cols)]
+            for row in range(self.rows)
+        ]
+        return type(self)(result)
+
+    def _check_same_shape(self, other: Matrix) -> None:
+        """Проверяет равенство размеров двух матриц"""
+        if self.rows != other.rows or self.cols != other.cols:
+            raise ValueError("Матрицы должны иметь одинаковый размер")
 
     def __mul__(self, scalar: int | float) -> Self:
-        # TODO
-        raise NotImplementedError
+        """Умножает каждый элемент матрицы на скаляр."""
+        result = [[value * scalar for value in row] for row in self._data]
+        return type(self)(result)
 
     def __rmul__(self, scalar: int | float) -> Self:
-        # TODO: поддержка записи вида 3 * matrix
+        """Поддерживает умножение скаляра на матрицу."""
         return self.__mul__(scalar)
 
     def __matmul__(self, other: Self) -> Self:
-        # TODO
-        raise NotImplementedError
+        """Выполняет матричное умножение."""
+        if self.cols != other.rows:
+            raise ValueError(
+                "Количество столбцов первой матрицы должно совпадать с количеством строк второй"
+            )
+        result = [
+            [
+                sum(self._data[row][index] * other._data[index][col] for index in range(self.cols))
+                for col in range(other.cols)
+            ]
+            for row in range(self.rows)
+        ]
+        return type(self)(result)
 
     def __eq__(self, other: object) -> bool:
-        # TODO
-        raise NotImplementedError
+        """Сравнивает матрицы по значениям элементов."""
+        return isinstance(other, Matrix) and self._data == other._data
 
     def __hash__(self) -> int:
-        # TODO
-        raise NotImplementedError
+        """Возвращает хеш матрицы."""
+        return hash(self._data)
 
     def __repr__(self) -> str:
-        # TODO: вернуть строку вида Matrix([[1, 2], [3, 4]])
-        raise NotImplementedError
+        """Возвращает однозначное представление матрицы."""
+        data = [list(row) for row in self._data]
+        return f"{type(self).__name__}({data!r})"
 
     def __str__(self) -> str:
-        # TODO: вернуть читаемую таблицу
-        raise NotImplementedError
+        """Возвращает матрицу в читаемом табличном виде."""
+        return "\n".join(" ".join(str(value) for value in row) for row in self._data)
 
     def __format__(self, format_spec: str) -> str:
-        # TODO: форматирование элементов с указанной точностью
-        raise NotImplementedError
+        """Форматирует каждый элемент матрицы по заданной спецификации."""
+        return "\n".join(
+            " ".join(format(value, format_spec) for value in row) for row in self._data
+        )
 
     @classmethod
     def from_file(cls, path: str) -> contextlib.AbstractContextManager[Matrix]:
-        """Контекстный менеджер для чтения матрицы из файла.
+        """Создаёт контекстный менеджер для чтения матрицы из файла."""
 
-        Использование::
+        @contextlib.contextmanager
+        def manager() -> Iterator[Matrix]:
+            with open(path, encoding="utf-8") as file:
+                data = [[float(value) for value in line.split()] for line in file if line.strip()]
+                yield cls(data)
 
-            with Matrix.from_file("data.txt") as m:
-                print(m)
-
-        Формат файла: строки матрицы, элементы через пробел.
-
-        TODO: реализовать чтение из файла.
-        Подсказка: можно использовать contextlib.contextmanager
-        или вернуть объект, поддерживающий протокол контекстного менеджера.
-        """
-        raise NotImplementedError
+        return manager()

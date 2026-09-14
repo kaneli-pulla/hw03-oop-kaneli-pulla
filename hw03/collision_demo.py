@@ -1,53 +1,56 @@
-"""Демонстрация хеширования и коллизий для задания 3.3.
-
-TODO: Реализовать следующее:
-
-1. Создать несколько объектов Matrix и поместить их в set и dict.
-   Показать, что равные матрицы дают одинаковый hash, а разные — могут
-   иметь разный (но не обязательно).
-
-2. Создать умышленную коллизию хешей:
-   - Две РАЗНЫЕ матрицы (m1 != m2), у которых hash(m1) == hash(m2).
-   - Показать, что Python корректно различает их в set/dict,
-     несмотря на одинаковый hash.
-
-3. Объяснить в комментариях/docstring:
-   - Почему hash и __eq__ должны быть согласованы.
-   - Как Python разрешает коллизии в set/dict.
-   - Какая сложность поиска при наличии коллизий.
-
-Подсказка: для создания коллизии можно переопределить __hash__
-в подклассе Matrix или подобрать данные, дающие одинаковый hash
-при вашей реализации.
-"""
-
 from hw03.matrix import Matrix
 
 
-def demonstrate_set_dict() -> dict:
-    """Демонстрация использования Matrix в set и dict.
+class CollidingMatrix(Matrix):
+    """Матрица с намеренно одинаковым хешем для демонстрации коллизии."""
 
-    Returns:
-        dict с ключами:
-        - "matrices_in_set": set из Matrix объектов
-        - "matrix_dict": dict с Matrix ключами
+    def __hash__(self) -> int:
+        """Возвращает фиксированный хеш для любой матрицы."""
+        return 239
 
-    TODO: реализовать
-    """
-    raise NotImplementedError
+    def __eq__(self, other: object) -> bool:
+        """Сравнивает коллидирующие матрицы по значениям элементов."""
+        return isinstance(other, CollidingMatrix) and self._data == other._data
+        # чтобы сравнение Matrix и CollidingMatrix всегда было False и
+        # соблюдался инвариант a == b -> hash(a) == hash(b).
+
+
+
+def demonstrate_set_dict() -> dict[str, object]:
+    """Демонстрирует использование Matrix в set и dict."""
+    first = Matrix([[1, 2], [3, 4]])
+    second = Matrix([[5, 6], [7, 8]])
+    first_copy = Matrix([[1, 2], [3, 4]])
+    matrices_in_set = {first, second, first_copy}
+    matrix_dict = {
+        first: "first",
+        second: "second",
+        first_copy: "first copy",
+    }
+    assert first == first_copy
+    assert hash(first) == hash(first_copy)
+    return {"matrices_in_set": matrices_in_set, "matrix_dict": matrix_dict}
 
 
 def demonstrate_collision() -> tuple[Matrix, Matrix]:
-    """Демонстрация коллизии хешей.
-
-    Returns:
-        Кортеж из двух матриц (m1, m2), где:
-        - m1 != m2 (разные матрицы)
-        - hash(m1) == hash(m2) (одинаковый хеш)
-
-    TODO: реализовать
-    """
-    raise NotImplementedError
+    """Демонстрирует корректную обработку коллизии хешей."""
+    first = CollidingMatrix([[1, 2], [3, 4]])
+    second = CollidingMatrix([[5, 6], [7, 8]])
+    assert first != second
+    assert hash(first) == hash(second)
+    matrices = {first, second}
+    assert len(matrices) == 2
+    # Для hashable-объектов должен выполняться инвариант:
+    # a == b -> hash(a) == hash(b).
+    # Если равные объекты имеют разные хеши, set и dict могут искать их
+    # в разных ячейках хеш-таблицы и воспринимать как разные ключи.
+    # Обратное неправда: одинаковый hash не означает равенство объектов.
+    # При коллизии Python дополнительно сравнивает объекты через __eq__,
+    # поэтому разные объекты с одинаковым хешем могут храниться вместе.
+    # В среднем поиск в set и dict выполняется за O(1).
+    # При большом количестве коллизий производительность ухудшается,
+    # а в худшем случае поиск может приблизиться к O(n).
+    return first, second
 
 
 if __name__ == "__main__":
